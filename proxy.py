@@ -4,6 +4,7 @@ import subprocess
 import asyncio
 import urllib.parse
 import uuid
+import base64
 
 # ==========================================
 # Auto-Install Missing Dependencies
@@ -40,10 +41,9 @@ except ImportError:
 # Main Script Logic (Multi-Tab)
 # ==========================================
 browser = None
-tabs = {}  # { tab_id: {"page": Page, "context": Context, "url": str, "title": str} }
+tabs = {}
 
 async def dashboard(request):
-    """Main dashboard to list all active background tabs and add new ones."""
     tabs_html = ""
     for tab_id, tab_info in tabs.items():
         title = tab_info.get("title", "Loading...")
@@ -91,7 +91,7 @@ async def dashboard(request):
             <div class="add-box">
                 <form action="/add" method="POST">
                     <label><strong>Add New Site:</strong></label><br><br>
-                    <input type="text" name="url" placeholder="https://example.com (or https://user:pass@example.com)" required />
+                    <input type="text" name="url" placeholder="https://example.com" required />
                     <button type="submit">➕ Launch Background Tab</button>
                 </form>
             </div>
@@ -120,7 +120,6 @@ async def add_tab(request):
     parsed_url = urllib.parse.urlparse(raw_url)
     display_url = raw_url
     
-    # Create isolated context
     context_options = {
         'viewport': {'width': 1280, 'height': 720},
         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -147,7 +146,6 @@ async def add_tab(request):
     
     tabs[tab_id] = {"page": page, "context": tab_context, "url": display_url, "title": "Loading..."}
     
-    # Trigger load in background
     asyncio.create_task(load_page_bg(tab_id, display_url))
     
     raise web.HTTPFound('/')
@@ -216,14 +214,12 @@ async def view_tab(request):
                 
                 fetch('/key/{tab_id}?k=' + encodeURIComponent(parts.join('+')));
                 
-                // Reset modifiers after sending
                 modifiers = {{ 'Control': false, 'Alt': false, 'Shift': false }};
                 document.querySelectorAll('.mod-btn').forEach(b => b.style.backgroundColor = '#444');
             }}
 
             function onKeyDown(event) {{
                 if (event.repeat) return;
-                
                 let key = event.key;
                 if (key === 'Enter') key = 'Enter';
                 else if (key === 'Backspace') key = 'Backspace';
@@ -323,13 +319,16 @@ async def stream(request):
     last_text = ""
     
     try:
+        import json
+        init_msg = json.dumps({"type": "full", "text": "✅ Stream Connected! Waiting for website to load..."})
+        await response.write(f"data: {init_msg}\n\n".encode('utf-8'))
+
         while True:
             if page and not page.is_closed():
                 try:
                     current_text = await page.evaluate('document.body ? document.body.innerText : ""')
                     
                     if current_text != last_text:
-                        import json
                         if current_text.startswith(last_text):
                             new_text = current_text[len(last_text):]
                             payload = json.dumps({"type": "append", "text": new_text})
@@ -394,8 +393,32 @@ async def refresh_tab(request):
             await page.reload()
     return web.Response(text=f"<script>window.location.href='/view/{tab_id}';</script>", content_type='text/html')
 
+@web.middleware
+async def auth_middleware(request, handler):
+    expected_pass = os.environ.get("PASSWORD")
+    if not expected_pass: 
+        return await handler(request)
+        
+    auth_header = request.headers.get('Authorization')
+    if auth_header:
+        try:
+            scheme, token = auth_header.split(' ', 1)
+            if scheme.lower() == 'basic':
+                decoded = base64.b64decode(token).decode('utf-8')
+                user, password = decoded.split(':', 1)
+                if password == expected_pass:
+                    return await handler(request)
+        except Exception:
+            pass
+            
+    return web.Response(
+        status=401,
+        text="Access Denied! Please enter the correct password.",
+        headers={'WWW-Authenticate': 'Basic realm="Secure Proxy"'}
+    )
+
 async def run_server():
-    app = web.Application()
+    app = web.Application(middlewares=[auth_middleware])
     app.add_routes([
         web.get('/', dashboard),
         web.post('/add', add_tab),
