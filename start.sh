@@ -6,12 +6,12 @@
 mkdir -p ~/.vnc
 if [ -n "$PASSWORD" ]; then
     echo "Setting up secure password..."
-    echo "$PASSWORD" | vncpasswd -f > ~/.vnc/passwd
-    chmod 600 ~/.vnc/passwd
+    echo "$PASSWORD" | vncpasswd -f > $HOME/.vnc/passwd
+    chmod 600 $HOME/.vnc/passwd
     
     # Check if vncpasswd successfully created the file (it fails if password < 6 chars)
-    if [ -s ~/.vnc/passwd ]; then
-        SEC_OPT="-SecurityTypes VncAuth -PasswordFile ~/.vnc/passwd"
+    if [ -s $HOME/.vnc/passwd ]; then
+        SEC_OPT="-SecurityTypes VncAuth -PasswordFile $HOME/.vnc/passwd"
     else
         echo "❌ WARNING: Password must be at least 6 characters! Disabling password..."
         SEC_OPT="-SecurityTypes None"
