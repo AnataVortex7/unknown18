@@ -2,7 +2,6 @@ FROM debian:bookworm-slim
 
 WORKDIR /app
 
-# Install TigerVNC, LXDE, noVNC, and Browsers
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     tigervnc-standalone-server \
@@ -15,7 +14,6 @@ RUN apt-get update && \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Setup Stealth Webroot
 RUN mkdir -p /app/webroot/study && \
     cp -r /usr/share/novnc/* /app/webroot/study/ && \
     echo '<html><body>System Active</body></html>' > /app/webroot/index.html && \
@@ -24,6 +22,9 @@ RUN mkdir -p /app/webroot/study && \
 
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
+
+COPY trackpad_patch.py /app/trackpad_patch.py
+RUN python3 /app/trackpad_patch.py /app/webroot/study/vnc.html
 
 EXPOSE 8080
 
