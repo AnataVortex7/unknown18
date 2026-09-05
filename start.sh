@@ -6,8 +6,10 @@ echo "⏳ Starting Study Core..."
 Xvfb :99 -screen 0 1280x720x16 -nolisten tcp &
 sleep 2
 
-echo "Applying Study UI..."
-openbox-session &
+echo "Starting LXDE Desktop Environment..."
+# Start the full desktop environment instead of just openbox
+startlxde &
+sleep 2
 
 echo "Launching Research Browser..."
 chromium --no-sandbox \
@@ -22,7 +24,6 @@ chromium --no-sandbox \
 
 echo "Securing Connection..."
 if [ -n "$PASSWORD" ]; then
-    # Create the password file properly and overwrite without asking (-f is not an option, but we can rm it first)
     mkdir -p ~/.vnc
     rm -f ~/.vnc/passwd
     x11vnc -storepasswd "$PASSWORD" ~/.vnc/passwd
@@ -37,7 +38,6 @@ sleep 2
 if ! pgrep -x "x11vnc" > /dev/null
 then
     echo "❌ ERROR: VNC Server failed to start!"
-    # Run it without quiet to see the error
     x11vnc -display :99 -nopw -rfbport 5900 &
 fi
 
