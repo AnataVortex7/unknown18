@@ -1,24 +1,8 @@
 #!/bin/bash
 
-echo "⏳ Initializing Advanced Study Environment..."
-echo "Downloading required modules... (Please wait, checking logs here)"
-
-# Install all packages during runtime so Koyeb logs show exactly what's failing if any
-apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y xvfb x11vnc openbox novnc websockify chromium
-
-echo "✅ Modules loaded successfully."
-
-# Setup index page
-ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
-
-# Stealth Mode: Rename 'noVNC' to 'Study Dashboard' in the HTML UI
-sed -i 's/noVNC/Study Dashboard/g' /usr/share/novnc/index.html
-sed -i 's/noVNC/Study Dashboard/g' /usr/share/novnc/vnc.html
-
 export DISPLAY=:99
 
-echo "Starting Study Core..."
+echo "⏳ Starting Study Core..."
 Xvfb :99 -screen 0 1280x720x16 -nolisten tcp &
 sleep 2
 
