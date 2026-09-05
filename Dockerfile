@@ -2,7 +2,7 @@ FROM debian:bullseye-slim
 
 WORKDIR /app
 
-# Install Xvfb, VNC, Window Manager, noVNC, and Browsers
+# Install Xvfb, VNC, Window Manager, noVNC, and Chromium (Midori removed)
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     xvfb \
@@ -11,12 +11,11 @@ RUN apt-get update && \
     novnc \
     websockify \
     chromium \
-    midori \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up noVNC default index page
-RUN ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
+RUN ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
 # Copy start script
 COPY start.sh /app/start.sh
