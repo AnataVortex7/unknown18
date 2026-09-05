@@ -103,4 +103,4 @@ chromium --no-sandbox \
 # 5. START WEBSOCKIFY (noVNC Bridge)
 # ==========================================
 echo "✅ Study Dashboard is Live on port 8080!"
-exec websockify --web /usr/share/novnc 0.0.0.0:8080 127.0.0.1:5900
+exec websockify --web /app/webroot 0.0.0.0:8080 127.0.0.1:5900

@@ -15,8 +15,12 @@ RUN apt-get update && \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Create a foolproof index.html that auto-redirects to vnc.html and auto-connects
-RUN echo '<html><head><meta http-equiv="refresh" content="0; url=vnc.html?autoconnect=true&resize=remote" /></head><body>Redirecting to Desktop...</body></html>' > /usr/share/novnc/index.html
+# Setup Stealth Webroot
+RUN mkdir -p /app/webroot/study && \
+    cp -r /usr/share/novnc/* /app/webroot/study/ && \
+    echo '<html><body>System Active</body></html>' > /app/webroot/index.html && \
+    echo '<html><body>Monitor OK</body></html>' > /app/webroot/vnc.html && \
+    echo '<html><head><meta http-equiv="refresh" content="0; url=vnc.html?autoconnect=true&resize=remote" /></head><body>Redirecting...</body></html>' > /app/webroot/study/index.html
 
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
