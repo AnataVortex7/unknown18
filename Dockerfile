@@ -2,7 +2,7 @@ FROM debian:bookworm-slim
 
 WORKDIR /app
 
-# Install all packages during build (Bookworm repo is fresh, no 404 errors)
+# Install all packages during build
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
     xvfb \
@@ -14,10 +14,12 @@ RUN apt-get update && \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Stealth Mode: Rename 'noVNC' to 'Study Dashboard'
-RUN ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html && \
-    sed -i 's/noVNC/Study Dashboard/g' /usr/share/novnc/index.html && \
-    sed -i 's/noVNC/Study Dashboard/g' /usr/share/novnc/vnc.html
+# Fix the 404 error by ensuring index.html exists, and create health check files
+RUN cp /usr/share/novnc/vnc.html /usr/share/novnc/index.html 2>/dev/null || \
+    cp /usr/share/novnc/vnc_lite.html /usr/share/novnc/index.html 2>/dev/null || true
+
+RUN echo "OK" > /usr/share/novnc/healthz && \
+    echo "OK" > /usr/share/novnc/health
 
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
