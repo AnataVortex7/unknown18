@@ -9,7 +9,6 @@ if [ -n "$PASSWORD" ]; then
     echo "$PASSWORD" | vncpasswd -f > $HOME/.vnc/passwd
     chmod 600 $HOME/.vnc/passwd
     
-    # Check if vncpasswd successfully created the file (it fails if password < 6 chars)
     if [ -s $HOME/.vnc/passwd ]; then
         SEC_OPT="-SecurityTypes VncAuth -PasswordFile $HOME/.vnc/passwd"
     else
@@ -31,15 +30,16 @@ sleep 2
 export DISPLAY=:0
 
 # ==========================================
-# 3. CREATE RAM CHECKER ON DESKTOP
+# 3. CREATE SYSTEM MONITOR ON DESKTOP
 # ==========================================
 mkdir -p /root/Desktop
-cat << 'RAMSCRIPT' > /root/check_ram.sh
+cat << 'SYSSCRIPT' > /root/check_system.sh
 #!/bin/bash
 echo -e "\e[1;36m=========================================\e[0m"
-echo -e "\e[1;33m  📊 REAL CLOUD PC RAM USAGE \e[0m"
+echo -e "\e[1;33m 🖥️  REAL CLOUD PC SPECIFICATIONS \e[0m"
 echo -e "\e[1;36m=========================================\e[0m"
 
+# --- RAM Calculation ---
 if [ -f /sys/fs/cgroup/memory.current ]; then
     USED=$(cat /sys/fs/cgroup/memory.current)
     MAX=$(cat /sys/fs/cgroup/memory.max)
@@ -51,35 +51,64 @@ else
     USED=$(awk '/MemTotal/ {t=$2} /MemAvailable/ {a=$2; print (t-a)*1024}' /proc/meminfo)
     MAX=$(awk '/MemTotal/ {printf "%d", $2 * 1024}' /proc/meminfo)
 fi
-
 USED_MB=$((USED / 1024 / 1024))
 MAX_MB=$((MAX / 1024 / 1024))
 FREE_MB=$((MAX_MB - USED_MB))
 
+# --- CPU Calculation ---
+if [ -f /sys/fs/cgroup/cpu.max ]; then
+    CPU_QUOTA=$(awk '{print $1}' /sys/fs/cgroup/cpu.max)
+    CPU_PERIOD=$(awk '{print $2}' /sys/fs/cgroup/cpu.max)
+    if [ "$CPU_QUOTA" != "max" ]; then
+        CPU_CORES=$(awk -v q="$CPU_QUOTA" -v p="$CPU_PERIOD" 'BEGIN { printf "%.2f", q/p }')
+    else
+        CPU_CORES=$(nproc)
+    fi
+elif [ -f /sys/fs/cgroup/cpu/cpu.cfs_quota_us ]; then
+    CPU_QUOTA=$(cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us)
+    CPU_PERIOD=$(cat /sys/fs/cgroup/cpu/cpu.cfs_period_us)
+    if [ "$CPU_QUOTA" != "-1" ]; then
+        CPU_CORES=$(awk -v q="$CPU_QUOTA" -v p="$CPU_PERIOD" 'BEGIN { printf "%.2f", q/p }')
+    else
+        CPU_CORES=$(nproc)
+    fi
+else
+    CPU_CORES=$(nproc)
+fi
+
+# --- Disk Calculation (Personal Files only) ---
+USER_DISK=$(du -shc /root /tmp /home 2>/dev/null | grep total | awk '{print $1}')
+
 echo -e "🟢 \e[1;32mTotal RAM Limit : ${MAX_MB} MB\e[0m"
 echo -e "🔴 \e[1;31mUsed RAM        : ${USED_MB} MB\e[0m"
 echo -e "🔵 \e[1;34mFree RAM        : ${FREE_MB} MB\e[0m"
+echo -e "\e[1;36m-----------------------------------------\e[0m"
+echo -e "⚙️  \e[1;33mReal CPU Limit  : ${CPU_CORES} vCPU\e[0m"
+echo -e "📂 \e[1;35mDownloaded Data : ${USER_DISK} (Personal)\e[0m"
 echo -e "\e[1;36m=========================================\e[0m"
 echo -e "\e[1;33m🔥 Top RAM Consuming Processes:\e[0m"
 ps -eo pid,%mem,cmd --sort=-%mem | head -n 6 | awk 'NR==1 {print "   PID  %MEM  COMMAND"} NR>1 {printf " %5s  %5s  %s\n", $1, $2, substr($3, 1, 30)}'
 echo -e "\e[1;36m=========================================\e[0m"
 echo "Press ENTER to close..."
 read
-RAMSCRIPT
+SYSSCRIPT
 
-chmod +x /root/check_ram.sh
+chmod +x /root/check_system.sh
 
-cat << 'DESKTOP' > /root/Desktop/Check_RAM.desktop
+# Remove old Check RAM desktop icon
+rm -f /root/Desktop/Check_RAM.desktop
+
+cat << 'DESKTOP' > /root/Desktop/System_Monitor.desktop
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Check Real RAM
-Comment=Check real memory usage
-Exec=lxterminal -e /root/check_ram.sh
+Name=Real System Monitor
+Comment=Check real Cloud PC Specs
+Exec=lxterminal -e /root/check_system.sh
 Terminal=false
 Icon=utilities-system-monitor
 DESKTOP
-chmod +x /root/Desktop/Check_RAM.desktop
+chmod +x /root/Desktop/System_Monitor.desktop
 
 # ==========================================
 # 4. START DESKTOP & BROWSER
