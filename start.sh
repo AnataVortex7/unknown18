@@ -42,4 +42,4 @@ then
 fi
 
 echo "✅ Study Dashboard is Live on port 8080!"
-exec websockify --web /usr/share/novnc 8080 localhost:5900
+exec websockify --web /usr/share/novnc 0.0.0.0:8080 localhost:5900
