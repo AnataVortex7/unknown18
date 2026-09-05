@@ -1,11 +1,28 @@
-FROM python:3.10-slim
+FROM debian:bullseye-slim
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir aiohttp playwright playwright-stealth && \
-    playwright install chromium && \
-    playwright install-deps chromium
+# Install Xvfb, VNC, Window Manager, noVNC, and Browsers
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    xvfb \
+    x11vnc \
+    openbox \
+    novnc \
+    websockify \
+    chromium \
+    midori \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY . .
+# Set up noVNC default index page
+RUN ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
-CMD ["python3", "-u", "proxy.py"]
+# Copy start script
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
+# Expose port for Koyeb (8080)
+EXPOSE 8080
+
+CMD ["/app/start.sh"]
