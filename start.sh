@@ -8,7 +8,14 @@ if [ -n "$PASSWORD" ]; then
     echo "Setting up secure password..."
     echo "$PASSWORD" | vncpasswd -f > ~/.vnc/passwd
     chmod 600 ~/.vnc/passwd
-    SEC_OPT="-SecurityTypes VncAuth -PasswordFile ~/.vnc/passwd"
+    
+    # Check if vncpasswd successfully created the file (it fails if password < 6 chars)
+    if [ -s ~/.vnc/passwd ]; then
+        SEC_OPT="-SecurityTypes VncAuth -PasswordFile ~/.vnc/passwd"
+    else
+        echo "❌ WARNING: Password must be at least 6 characters! Disabling password..."
+        SEC_OPT="-SecurityTypes None"
+    fi
 else
     echo "Warning: No password set!"
     SEC_OPT="-SecurityTypes None"
@@ -17,8 +24,6 @@ fi
 # ==========================================
 # 2. START TIGERVNC (Xvnc)
 # ==========================================
-# TigerVNC combines the virtual display and VNC server in one stable process.
-# Display :0 runs on port 5900 automatically.
 echo "Starting TigerVNC Server..."
 Xvnc :0 -geometry 1280x720 -depth 16 $SEC_OPT -localhost yes -BlacklistThreshold 0 -BlacklistTimeout 0 &
 sleep 2
@@ -98,4 +103,4 @@ chromium --no-sandbox \
 # 5. START WEBSOCKIFY (noVNC Bridge)
 # ==========================================
 echo "✅ Study Dashboard is Live on port 8080!"
-exec websockify --web /usr/share/novnc 0.0.0.0:8080 localhost:5900
+exec websockify --web /usr/share/novnc 0.0.0.0:8080 127.0.0.1:5900
