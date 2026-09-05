@@ -22,9 +22,8 @@ chromium --no-sandbox \
 
 echo "Securing Connection..."
 if [ -n "$PASSWORD" ]; then
-    mkdir -p ~/.vnc
-    x11vnc -storepasswd "$PASSWORD" ~/.vnc/passwd
-    x11vnc -display :99 -rfbauth ~/.vnc/passwd -forever -shared -quiet &
+    # Use -passwd directly to avoid interactive prompts hanging the script
+    x11vnc -display :99 -passwd "$PASSWORD" -forever -shared -quiet &
 else
     x11vnc -display :99 -nopw -forever -shared -quiet &
 fi
