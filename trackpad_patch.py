@@ -1,9 +1,7 @@
-import re
 import sys
 
 filepath = sys.argv[1]
 
-# The Trackpad JS code
 trackpad_js = """
 // --- VIRTUAL TRACKPAD WIDGET ---
 setTimeout(function() {
@@ -13,7 +11,7 @@ setTimeout(function() {
     pad.style.bottom = "20px";
     pad.style.right = "20px";
     pad.style.width = "220px";
-    pad.style.height = "260px";
+    pad.style.height = "280px";
     pad.style.backgroundColor = "rgba(50, 50, 50, 0.6)";
     pad.style.borderRadius = "10px";
     pad.style.zIndex = "999999";
@@ -36,26 +34,58 @@ setTimeout(function() {
     header.innerHTML = "↕️ Drag | <span id='pad-close' style='color:#ff4c4c;cursor:pointer;font-weight:bold;float:right;margin-right:15px;'>✖ Hide</span>";
     pad.appendChild(header);
 
+    // Controls Row
+    var controls = document.createElement("div");
+    controls.style.display = "flex";
+    controls.style.flexDirection = "column";
+    controls.style.padding = "2px 0";
+    controls.style.backgroundColor = "rgba(0,0,0,0.2)";
+
     // Opacity Slider
     var sliderCont = document.createElement("div");
     sliderCont.style.textAlign = "center";
     sliderCont.style.color = "white";
-    sliderCont.style.fontSize = "12px";
+    sliderCont.style.fontSize = "11px";
     sliderCont.style.padding = "2px";
-    sliderCont.innerHTML = "Transparency: ";
+    sliderCont.innerHTML = "Opacity: ";
     var slider = document.createElement("input");
     slider.type = "range";
     slider.min = "0.1";
     slider.max = "1.0";
     slider.step = "0.1";
     slider.value = "0.6";
-    slider.style.width = "100px";
+    slider.style.width = "90px";
     slider.style.verticalAlign = "middle";
     slider.addEventListener("input", function(e) {
         pad.style.backgroundColor = "rgba(50, 50, 50, " + e.target.value + ")";
     });
     sliderCont.appendChild(slider);
-    pad.appendChild(sliderCont);
+    controls.appendChild(sliderCont);
+
+    // Size Slider
+    var sizeCont = document.createElement("div");
+    sizeCont.style.textAlign = "center";
+    sizeCont.style.color = "white";
+    sizeCont.style.fontSize = "11px";
+    sizeCont.style.padding = "2px";
+    sizeCont.innerHTML = "Size: &nbsp;&nbsp;&nbsp;&nbsp;";
+    var sizeSlider = document.createElement("input");
+    sizeSlider.type = "range";
+    sizeSlider.min = "120";
+    sizeSlider.max = "450";
+    sizeSlider.step = "10";
+    sizeSlider.value = "220";
+    sizeSlider.style.width = "90px";
+    sizeSlider.style.verticalAlign = "middle";
+    sizeSlider.addEventListener("input", function(e) {
+        var w = parseInt(e.target.value);
+        pad.style.width = w + "px";
+        pad.style.height = (w * 1.25) + "px"; // Keep proportional height
+    });
+    sizeCont.appendChild(sizeSlider);
+    controls.appendChild(sizeCont);
+
+    pad.appendChild(controls);
 
     // Touch Area
     var touchArea = document.createElement("div");
@@ -64,7 +94,7 @@ setTimeout(function() {
     touchArea.style.margin = "5px";
     touchArea.style.borderRadius = "5px";
     touchArea.style.backgroundColor = "rgba(255,255,255,0.1)";
-    touchArea.innerHTML = "<div style='color:white;text-align:center;margin-top:30%;opacity:0.7;user-select:none;'>👆 Slide here<br><br><small>(Tap to click)</small></div>";
+    touchArea.innerHTML = "<div style='color:white;text-align:center;margin-top:30%;opacity:0.7;user-select:none;pointer-events:none;'>👆 Slide here</div>";
     pad.appendChild(touchArea);
     
     // Buttons Row
@@ -146,7 +176,7 @@ setTimeout(function() {
         lastTouchX = e.touches[0].clientX;
         lastTouchY = e.touches[0].clientY;
         
-        vCursorX += dx * 1.5; // Mouse sensitivity
+        vCursorX += dx * 1.5; 
         vCursorY += dy * 1.5;
         
         if(vCursorX < 0) vCursorX = 0;
@@ -163,10 +193,10 @@ setTimeout(function() {
         var currentTime = new Date().getTime();
         var tapLength = currentTime - lastTap;
         
-        if (tapLength < 300 && tapLength > 0) { // Double tap
+        if (tapLength < 300 && tapLength > 0) {
             sendEvent("mousedown", 0, vCursorX, vCursorY);
             sendEvent("mouseup", 0, vCursorX, vCursorY);
-        } else { // Single tap (Left click)
+        } else {
             sendEvent("mousedown", 0, vCursorX, vCursorY);
             sendEvent("mouseup", 0, vCursorX, vCursorY);
         }
@@ -228,6 +258,10 @@ setTimeout(function() {
 # Read vnc.html and inject the script at the end of the body
 with open(filepath, 'r') as f:
     content = f.read()
+    
+# Remove old injected script if it exists
+if "<script>\n// --- VIRTUAL TRACKPAD WIDGET ---" in content:
+    content = content.split("<script>\n// --- VIRTUAL TRACKPAD WIDGET ---")[0] + "</body>\n</html>"
 
 # Add script tag
 script_tag = f"\n<script>\n{trackpad_js}\n</script>\n</body>"
