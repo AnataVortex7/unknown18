@@ -188,8 +188,8 @@ async def view_tab(request):
             body {{ margin: 0; padding: 0; background: #222; color: white; font-family: sans-serif; text-align: center; overflow: hidden; }}
             .container {{ display: flex; flex-direction: column; height: 100vh; overflow: hidden; }}
             .toolbar {{ background: #111; padding: 5px; display: flex; justify-content: center; gap: 8px; align-items: center; flex-wrap: wrap; }}
-            .stream-container {{ flex: 1; display: flex; justify-content: center; align-items: flex-start; overflow: auto; background: #000; }}
-            img {{ max-width: 100%; height: auto; box-shadow: 0 0 10px rgba(0,0,0,0.5); cursor: crosshair; }}
+            .stream-container {{ flex: 1; display: flex; justify-content: flex-start; align-items: flex-start; overflow: auto; background: #000; text-align: left; padding: 10px; }}
+            pre#text-output {{ margin: 0; white-space: pre-wrap; word-wrap: break-word; color: #0f0; width: 100%; font-family: monospace; font-size: 14px; }}
             a.btn, button.btn {{ background: #007bff; color: white; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; border: none; cursor: pointer; font-size: 13px; }}
             a.btn:hover, button.btn:hover {{ background: #0056b3; }}
             a.btn-back {{ background: #6c757d; }}
@@ -221,17 +221,6 @@ async def view_tab(request):
                 document.querySelectorAll('.mod-btn').forEach(b => b.style.backgroundColor = '#444');
             }}
 
-            function onClick(event) {{
-                openKeyboard();
-                const img = event.target;
-                const rect = img.getBoundingClientRect();
-                const scaleX = 1280 / rect.width;
-                const scaleY = 720 / rect.height;
-                const x = (event.clientX - rect.left) * scaleX;
-                const y = (event.clientY - rect.top) * scaleY;
-                fetch('/click/{tab_id}?x=' + Math.round(x) + '&y=' + Math.round(y));
-            }}
-            
             function onKeyDown(event) {{
                 if (event.repeat) return;
                 
@@ -270,6 +259,19 @@ async def view_tab(request):
             
             document.addEventListener('DOMContentLoaded', () => {{
                 document.addEventListener('keydown', onKeyDown);
+                
+                const output = document.getElementById('text-output');
+                const source = new EventSource('/stream/{tab_id}');
+                source.onmessage = function(event) {{
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'full') {{
+                        output.textContent = data.text;
+                    }} else if (data.type === 'append') {{
+                        output.textContent += data.text;
+                    }}
+                    const container = document.querySelector('.stream-container');
+                    container.scrollTop = container.scrollHeight;
+                }};
             }});
         </script>
     </head>
@@ -297,7 +299,7 @@ async def view_tab(request):
                 <button onclick="sendKey('Backspace')">⌫ Back</button>
             </div>
             <div class="stream-container">
-                <img src="/stream/{tab_id}" onclick="onClick(event)" alt="Live Stream" />
+                <pre id="text-output">Loading...</pre>
             </div>
         </div>
     </body>
@@ -311,21 +313,34 @@ async def stream(request):
         return web.Response(text="Not found", status=404)
         
     page = tabs[tab_id]["page"]
-    response = web.StreamResponse(status=200, reason='OK', headers={'Content-Type': 'multipart/x-mixed-replace; boundary=frame'})
+    response = web.StreamResponse(status=200, reason='OK', headers={
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+    })
     await response.prepare(request)
+    
+    last_text = ""
     
     try:
         while True:
             if page and not page.is_closed():
                 try:
-                    screenshot = await page.screenshot(type='jpeg', quality=20, timeout=2000)
-                    await response.write(
-                        b'--frame\r\n'
-                        b'Content-Type: image/jpeg\r\n\r\n' + screenshot + b'\r\n'
-                    )
+                    current_text = await page.evaluate('document.body ? document.body.innerText : ""')
+                    
+                    if current_text != last_text:
+                        import json
+                        if current_text.startswith(last_text):
+                            new_text = current_text[len(last_text):]
+                            payload = json.dumps({"type": "append", "text": new_text})
+                        else:
+                            payload = json.dumps({"type": "full", "text": current_text})
+                            
+                        await response.write(f"data: {payload}\n\n".encode('utf-8'))
+                        last_text = current_text
                 except Exception as e:
-                    pass # Ignore screenshot timeouts to keep stream alive
-            await asyncio.sleep(14)
+                    pass # Ignore timeouts to keep stream alive
+            await asyncio.sleep(1) # Fast 1 second update
     except asyncio.CancelledError:
         pass
     except ConnectionResetError:
