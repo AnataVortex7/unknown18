@@ -1,17 +1,31 @@
 #!/bin/bash
 
+echo "⏳ Initializing Advanced Study Environment..."
+echo "Downloading required modules... (Please wait, checking logs here)"
+
+# Install all packages during runtime so Koyeb logs show exactly what's failing if any
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get install -y xvfb x11vnc openbox novnc websockify chromium
+
+echo "✅ Modules loaded successfully."
+
+# Setup index page
+ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
+
+# Stealth Mode: Rename 'noVNC' to 'Study Dashboard' in the HTML UI
+sed -i 's/noVNC/Study Dashboard/g' /usr/share/novnc/index.html
+sed -i 's/noVNC/Study Dashboard/g' /usr/share/novnc/vnc.html
+
 export DISPLAY=:99
 
-echo "Starting Virtual Display (Xvfb)..."
-# 1280x720 resolution is standard for tabs/laptops
-Xvfb :99 -screen 0 1280x720x16 &
+echo "Starting Study Core..."
+Xvfb :99 -screen 0 1280x720x16 -nolisten tcp &
 sleep 2
 
-echo "Starting Window Manager (Openbox)..."
+echo "Applying Study UI..."
 openbox-session &
 
-echo "Starting Browser (Chromium)..."
-# Adding a real Windows User-Agent so sites don't detect it as a bot
+echo "Launching Research Browser..."
 chromium --no-sandbox \
          --disable-dev-shm-usage \
          --disable-gpu \
@@ -22,18 +36,16 @@ chromium --no-sandbox \
          --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
          &
 
-echo "Starting VNC Server..."
+echo "Securing Connection..."
 if [ -n "$PASSWORD" ]; then
-    echo "Password protection enabled."
     mkdir -p ~/.vnc
     x11vnc -storepasswd "$PASSWORD" ~/.vnc/passwd
     x11vnc -display :99 -rfbauth ~/.vnc/passwd -forever -shared -quiet &
 else
-    echo "Warning: No PASSWORD set."
     x11vnc -display :99 -nopw -forever -shared -quiet &
 fi
 
 sleep 2
 
-echo "✅ Starting noVNC on port 8080..."
+echo "✅ Study Dashboard is Live on port 8080!"
 exec websockify --web /usr/share/novnc 8080 localhost:5900
