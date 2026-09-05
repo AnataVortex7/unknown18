@@ -1,4 +1,0 @@
-gradio
-spaces
-huggingface_hub
-smolagents
