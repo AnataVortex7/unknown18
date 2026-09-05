@@ -20,7 +20,7 @@ fi
 # TigerVNC combines the virtual display and VNC server in one stable process.
 # Display :0 runs on port 5900 automatically.
 echo "Starting TigerVNC Server..."
-Xvnc :0 -geometry 1280x720 -depth 16 $SEC_OPT -localhost yes &
+Xvnc :0 -geometry 1280x720 -depth 16 $SEC_OPT -localhost yes -BlacklistThreshold 0 -BlacklistTimeout 0 &
 sleep 2
 
 export DISPLAY=:0
