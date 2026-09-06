@@ -9,7 +9,7 @@ RUN apt-get update && \
     lxterminal \
     novnc \
     websockify \
-    chromium \
+    firefox-esr \
     curl \
     procps \
     && rm -rf /var/lib/apt/lists/*

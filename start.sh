@@ -116,18 +116,8 @@ echo "Starting LXDE Desktop Environment..."
 startlxde &
 sleep 2
 
-echo "Launching Browser in Stealth/Low-Memory Mode..."
-chromium --no-sandbox \
-         --disable-dev-shm-usage \
-         --disable-gpu \
-         --disable-software-rasterizer \
-         --start-maximized \
-         --renderer-process-limit=2 \
-         --js-flags="--max-old-space-size=256" \
-         --disable-background-timer-throttling \
-         --disable-blink-features=AutomationControlled \
-         --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
-         &
+echo "Launching Firefox Browser (Bot Bypass Mode)..."
+firefox-esr --private-window &
 
 # ==========================================
 # 5. START WEBSOCKIFY (noVNC Bridge)
