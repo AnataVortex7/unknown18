@@ -1,6 +1,14 @@
 import sys
+import os
+
+if len(sys.argv) < 2:
+    print("Usage: python trackpad_patch.py <path_to_vnc_html>")
+    sys.exit(1)
 
 filepath = sys.argv[1]
+if not os.path.exists(filepath):
+    print(f"File not found: {filepath}")
+    sys.exit(1)
 
 trackpad_js = """
 // --- VIRTUAL TRACKPAD WIDGET ---
@@ -17,29 +25,29 @@ setTimeout(function() {
     pad.style.zIndex = "999999";
     pad.style.display = "flex";
     pad.style.flexDirection = "column";
+    pad.style.boxShadow = "0 4px 10px rgba(0,0,0,0.5)";
     pad.style.touchAction = "none";
-    pad.style.boxShadow = "0 4px 8px rgba(0,0,0,0.3)";
-    
-    // Header (Move Handle)
+
+    // Header (Draggable)
     var header = document.createElement("div");
-    header.style.height = "35px";
-    header.style.backgroundColor = "rgba(20,20,20,0.8)";
-    header.style.color = "white";
-    header.style.textAlign = "center";
-    header.style.lineHeight = "35px";
+    header.style.height = "30px";
+    header.style.backgroundColor = "rgba(0,0,0,0.7)";
     header.style.borderTopLeftRadius = "10px";
     header.style.borderTopRightRadius = "10px";
+    header.style.color = "white";
+    header.style.textAlign = "center";
+    header.style.lineHeight = "30px";
+    header.style.fontSize = "14px";
     header.style.cursor = "move";
     header.style.userSelect = "none";
-    header.innerHTML = "↕️ Drag | <span id='pad-close' style='color:#ff4c4c;cursor:pointer;font-weight:bold;float:right;margin-right:15px;'>✖ Hide</span>";
+    header.innerHTML = "🖱️ Trackpad <span id='pad-close' style='float:right;margin-right:10px;cursor:pointer;color:red;'>✖</span>";
     pad.appendChild(header);
 
-    // Controls Row
+    // Settings Controls
     var controls = document.createElement("div");
     controls.style.display = "flex";
-    controls.style.flexDirection = "column";
-    controls.style.padding = "2px 0";
-    controls.style.backgroundColor = "rgba(0,0,0,0.2)";
+    controls.style.justifyContent = "space-around";
+    controls.style.padding = "5px 0";
 
     // Opacity Slider
     var sliderCont = document.createElement("div");
@@ -80,7 +88,7 @@ setTimeout(function() {
     sizeSlider.addEventListener("input", function(e) {
         var w = parseInt(e.target.value);
         pad.style.width = w + "px";
-        pad.style.height = (w * 1.25) + "px"; // Keep proportional height
+        pad.style.height = (w * 1.25) + "px";
     });
     sizeCont.appendChild(sizeSlider);
     controls.appendChild(sizeCont);
@@ -94,7 +102,7 @@ setTimeout(function() {
     touchArea.style.margin = "5px";
     touchArea.style.borderRadius = "5px";
     touchArea.style.backgroundColor = "rgba(255,255,255,0.1)";
-    touchArea.innerHTML = "<div style='color:white;text-align:center;margin-top:30%;opacity:0.7;user-select:none;pointer-events:none;'>👆 Slide here</div>";
+    touchArea.innerHTML = "<div style='color:white;text-align:center;margin-top:30%;opacity:0.7;user-select:none;pointer-events:none;'>👆 Slide (2 Fingers = Scroll)</div>";
     pad.appendChild(touchArea);
     
     // Buttons Row
@@ -149,15 +157,26 @@ setTimeout(function() {
     var vCursorX = window.innerWidth / 2;
     var vCursorY = window.innerHeight / 2;
     var lastTouchX = 0, lastTouchY = 0;
+    var touchMoved = false;
+    var isTwoFinger = false;
+    var initialDist = 0;
 
-    function sendEvent(type, button, cx, cy) {
+    function sendEvent(type, button, cx, cy, deltaY, isZoom) {
         var canvas = document.querySelector("#noVNC_canvas canvas") || document.querySelector("canvas");
         if(!canvas) return;
+        if (type === "wheel") {
+            var e = new WheelEvent("wheel", {
+                bubbles: true, cancelable: true,
+                clientX: cx, clientY: cy,
+                deltaY: deltaY, deltaMode: 0,
+                ctrlKey: isZoom === true
+            });
+            canvas.dispatchEvent(e);
+            return;
+        }
         var e = new MouseEvent(type, {
-            bubbles: true,
-            cancelable: true,
-            clientX: cx,
-            clientY: cy,
+            bubbles: true, cancelable: true,
+            clientX: cx, clientY: cy,
             button: button,
             buttons: button === 0 ? 1 : (button === 2 ? 2 : 0)
         });
@@ -165,54 +184,85 @@ setTimeout(function() {
     }
 
     touchArea.addEventListener("touchstart", function(e) {
-        lastTouchX = e.touches[0].clientX;
-        lastTouchY = e.touches[0].clientY;
+        touchMoved = false;
+        if (e.touches.length === 2) {
+            isTwoFinger = true;
+            lastTouchY = e.touches[0].clientY;
+            var dx = e.touches[0].clientX - e.touches[1].clientX;
+            var dy = e.touches[0].clientY - e.touches[1].clientY;
+            initialDist = Math.sqrt(dx*dx + dy*dy);
+        } else if (e.touches.length === 1) {
+            isTwoFinger = false;
+            initialDist = 0;
+            lastTouchX = e.touches[0].clientX;
+            lastTouchY = e.touches[0].clientY;
+        }
         e.preventDefault();
     }, {passive: false});
 
     touchArea.addEventListener("touchmove", function(e) {
-        var dx = e.touches[0].clientX - lastTouchX;
-        var dy = e.touches[0].clientY - lastTouchY;
-        lastTouchX = e.touches[0].clientX;
-        lastTouchY = e.touches[0].clientY;
-        
-        vCursorX += dx * 1.5; 
-        vCursorY += dy * 1.5;
-        
-        if(vCursorX < 0) vCursorX = 0;
-        if(vCursorX > window.innerWidth) vCursorX = window.innerWidth;
-        if(vCursorY < 0) vCursorY = 0;
-        if(vCursorY > window.innerHeight) vCursorY = window.innerHeight;
+        touchMoved = true;
+        if (isTwoFinger && e.touches.length === 2) {
+            var dx = e.touches[0].clientX - e.touches[1].clientX;
+            var dy = e.touches[0].clientY - e.touches[1].clientY;
+            var currentDist = Math.sqrt(dx*dx + dy*dy);
+            
+            // Check if it's a pinch (zoom) or a scroll
+            if (Math.abs(currentDist - initialDist) > 30) {
+                // Zoom
+                var zoomDir = (currentDist > initialDist) ? -100 : 100; // Pinch out = zoom in (-), Pinch in = zoom out (+)
+                sendEvent("wheel", 0, vCursorX, vCursorY, zoomDir, true);
+                initialDist = currentDist;
+            } else {
+                // Normal Two finger scroll
+                var scrolldy = e.touches[0].clientY - lastTouchY;
+                lastTouchY = e.touches[0].clientY;
+                if (Math.abs(scrolldy) > 2) {
+                    sendEvent("wheel", 0, vCursorX, vCursorY, scrolldy > 0 ? 100 : -100, false);
+                }
+            }
+        } else if (e.touches.length === 1 && !isTwoFinger) {
+            // Normal cursor move
+            var dx = e.touches[0].clientX - lastTouchX;
+            var dy = e.touches[0].clientY - lastTouchY;
+            lastTouchX = e.touches[0].clientX;
+            lastTouchY = e.touches[0].clientY;
+            
+            vCursorX += dx * 1.5; 
+            vCursorY += dy * 1.5;
+            
+            if(vCursorX < 0) vCursorX = 0;
+            if(vCursorX > window.innerWidth) vCursorX = window.innerWidth;
+            if(vCursorY < 0) vCursorY = 0;
+            if(vCursorY > window.innerHeight) vCursorY = window.innerHeight;
 
-        sendEvent("mousemove", -1, vCursorX, vCursorY);
+            sendEvent("mousemove", -1, vCursorX, vCursorY, 0, false);
+        }
         e.preventDefault();
     }, {passive: false});
 
-    var lastTap = 0;
     touchArea.addEventListener("touchend", function(e) {
-        var currentTime = new Date().getTime();
-        var tapLength = currentTime - lastTap;
-        
-        if (tapLength < 300 && tapLength > 0) {
-            sendEvent("mousedown", 0, vCursorX, vCursorY);
-            sendEvent("mouseup", 0, vCursorX, vCursorY);
-        } else {
-            sendEvent("mousedown", 0, vCursorX, vCursorY);
-            sendEvent("mouseup", 0, vCursorX, vCursorY);
+        if (!isTwoFinger && !touchMoved) {
+            // It was a clean Tap -> Send Click
+            sendEvent("mousedown", 0, vCursorX, vCursorY, 0, false);
+            sendEvent("mouseup", 0, vCursorX, vCursorY, 0, false);
         }
-        lastTap = currentTime;
+        if (e.touches.length === 0) {
+            isTwoFinger = false;
+            initialDist = 0;
+        }
         e.preventDefault();
     }, {passive: false});
 
     function addBtnLogic(btn, btnCode) {
         btn.addEventListener("touchstart", function(e) {
-            sendEvent("mousedown", btnCode, vCursorX, vCursorY);
+            sendEvent("mousedown", btnCode, vCursorX, vCursorY, 0);
             btn.style.backgroundColor = "white";
             btn.style.color = "black";
             e.preventDefault();
         }, {passive: false});
         btn.addEventListener("touchend", function(e) {
-            sendEvent("mouseup", btnCode, vCursorX, vCursorY);
+            sendEvent("mouseup", btnCode, vCursorX, vCursorY, 0);
             btn.style.backgroundColor = "rgba(100,100,255,0.8)";
             btn.style.color = "white";
             e.preventDefault();
@@ -255,18 +305,14 @@ setTimeout(function() {
 }, 2000);
 """
 
-# Read vnc.html and inject the script at the end of the body
 with open(filepath, 'r') as f:
     content = f.read()
     
-# Remove old injected script if it exists
 if "<script>\n// --- VIRTUAL TRACKPAD WIDGET ---" in content:
     content = content.split("<script>\n// --- VIRTUAL TRACKPAD WIDGET ---")[0] + "</body>\n</html>"
 
-# Add script tag
-script_tag = f"\n<script>\n{trackpad_js}\n</script>\n</body>"
+script_tag = f"\\n<script>\\n{trackpad_js}\\n</script>\\n</body>"
 content = content.replace("</body>", script_tag)
 
 with open(filepath, 'w') as f:
     f.write(content)
-
