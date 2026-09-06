@@ -95,7 +95,6 @@ SYSSCRIPT
 
 chmod +x /root/check_system.sh
 
-# Remove old Check RAM desktop icon
 rm -f /root/Desktop/Check_RAM.desktop
 
 cat << 'DESKTOP' > /root/Desktop/System_Monitor.desktop
@@ -117,19 +116,21 @@ echo "Starting LXDE Desktop Environment..."
 startlxde &
 sleep 2
 
-echo "Launching Browser..."
+echo "Launching Browser in Stealth/Low-Memory Mode..."
 chromium --no-sandbox \
          --disable-dev-shm-usage \
          --disable-gpu \
          --disable-software-rasterizer \
          --start-maximized \
-         --touch-events=enabled \
-         --incognito \
+         --renderer-process-limit=2 \
+         --js-flags="--max-old-space-size=256" \
+         --disable-background-timer-throttling \
+         --disable-blink-features=AutomationControlled \
          --user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
          &
 
 # ==========================================
 # 5. START WEBSOCKIFY (noVNC Bridge)
 # ==========================================
-echo "✅ Study Dashboard is Live on port 8080!"
+echo "✅ Command Center is Live on port 8080!"
 exec websockify --web /app/webroot 0.0.0.0:8080 127.0.0.1:5900
