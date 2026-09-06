@@ -40,7 +40,7 @@ setTimeout(function() {
     header.style.fontSize = "14px";
     header.style.cursor = "move";
     header.style.userSelect = "none";
-    header.innerHTML = "🖱️ Trackpad <span id='pad-close' style='float:right;margin-right:10px;cursor:pointer;color:red;'>✖</span>";
+    header.innerHTML = "Trackpad <span id='pad-close' style='float:right;margin-right:10px;cursor:pointer;color:red;'>X</span>";
     pad.appendChild(header);
 
     // Settings Controls
@@ -102,7 +102,7 @@ setTimeout(function() {
     touchArea.style.margin = "5px";
     touchArea.style.borderRadius = "5px";
     touchArea.style.backgroundColor = "rgba(255,255,255,0.1)";
-    touchArea.innerHTML = "<div style='color:white;text-align:center;margin-top:30%;opacity:0.7;user-select:none;pointer-events:none;'>👆 Slide (2 Fingers = Scroll)</div>";
+    touchArea.innerHTML = "<div style='color:white;text-align:center;margin-top:30%;opacity:0.7;user-select:none;pointer-events:none;'>Slide (2 Fingers = Scroll/Zoom)</div>";
     pad.appendChild(touchArea);
     
     // Buttons Row
@@ -134,7 +134,7 @@ setTimeout(function() {
 
     // Toggle Button
     var toggleBtn = document.createElement("div");
-    toggleBtn.innerHTML = "🖱️ Trackpad";
+    toggleBtn.innerHTML = "Trackpad";
     toggleBtn.style.position = "fixed";
     toggleBtn.style.top = "10px";
     toggleBtn.style.left = "50%";
@@ -311,7 +311,7 @@ with open(filepath, 'r') as f:
 if "<script>\n// --- VIRTUAL TRACKPAD WIDGET ---" in content:
     content = content.split("<script>\n// --- VIRTUAL TRACKPAD WIDGET ---")[0] + "</body>\n</html>"
 
-script_tag = f"\\n<script>\\n{trackpad_js}\\n</script>\\n</body>"
+script_tag = f"\n<script>\n{trackpad_js}\n</script>\n</body>"
 content = content.replace("</body>", script_tag)
 
 with open(filepath, 'w') as f:
